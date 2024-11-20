@@ -8,7 +8,7 @@ from airflow.providers.postgres.hooks.postgres import PostgresHook
 
 # Function to fetch Google Books data (Extract + Transform)
 def fetch_google_books(num_books, ti):
-    API_KEY = "your_google_books_api_key"
+    API_KEY = "goggle_books_api_key"
     query = "data engineering"
     url = f"https://www.googleapis.com/books/v1/volumes?q={query}&maxResults={num_books}&key={API_KEY}"
 
