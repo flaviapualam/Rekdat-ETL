@@ -24,6 +24,7 @@ def fetch_google_books(num_books, ti):
                 "Authors": ', '.join(volume_info.get('authors', [])),
                 "Description": volume_info.get('description', 'N/A'),
                 "AverageRating": volume_info.get('averageRating', 'N/A'),
+                "ReviewsCount": volume_info.get('ratingsCount', 0),
             })
 
         df = pd.DataFrame(books)
@@ -39,11 +40,11 @@ def load_google_books_to_postgres(ti):
 
     postgres_hook = PostgresHook(postgres_conn_id='books_connection')
     insert_query = """
-    INSERT INTO GoogleBooks (title, authors, description, average_rating)
-    VALUES (%s, %s, %s, %s);
+    INSERT INTO GoogleBooks (title, authors, description, average_rating, reviews_count)
+    VALUES (%s, %s, %s, %s, %s);
     """
     for book in book_data:
-        postgres_hook.run(insert_query, parameters=(book['Title'], book['Authors'], book['Description'], book['AverageRating']))
+        postgres_hook.run(insert_query, parameters=(book['Title'], book['Authors'], book['Description'], book['AverageRating'], book['ReviewsCount']))
 
 default_args = {
     'owner': 'airflow',
@@ -57,13 +58,13 @@ dag = DAG(
     'google_books_etl',
     default_args=default_args,
     description='ETL for Google books every hour',
-    schedule_interval='@hourly',
+    schedule_interval=timedelta(days=1),
 )
 
 fetch_google_books_task = PythonOperator(
     task_id='fetch_google_books',
     python_callable=fetch_google_books,
-    op_args=[50],  # Number of books to fetch
+    op_args=[500],  # Number of books to fetch
     dag=dag,
 )
 
@@ -76,7 +77,8 @@ create_table_task = PostgresOperator(
         title TEXT NOT NULL,
         authors TEXT,
         description TEXT,
-        average_rating TEXT
+        average_rating TEXT,
+        reviews_count INTEGER
     );
     """,
     dag=dag,
