@@ -84,13 +84,13 @@ dag = DAG(
     'amazon_books_etl',
     default_args=default_args,
     description='ETL for Amazon books every hour',
-    schedule_interval='@hourly',
+    schedule_interval=timedelta(days=1),
 )
 
 fetch_amazon_books_task = PythonOperator(
     task_id='fetch_amazon_books',
     python_callable=fetch_amazon_books,
-    op_args=[50],  # Number of books to fetch
+    op_args=[500],  # Number of books to fetch
     dag=dag,
 )
 
