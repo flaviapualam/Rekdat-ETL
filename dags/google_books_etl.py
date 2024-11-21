@@ -5,8 +5,10 @@ from airflow.utils.dates import days_ago
 import requests
 import random
 
+load_dotenv()
+
 POSTGRES_CONN_ID = 'postgres_default'
-API_KEY = 'AIzaSyB9gwd8USwNRsB2cpSI0wyKMGcjBv8OR6M'
+API_KEY = os.getenv('google_api_key')
 BASE_URL = "https://www.googleapis.com/books/v1/volumes"
 
 default_args = {
