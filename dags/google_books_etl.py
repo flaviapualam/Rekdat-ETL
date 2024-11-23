@@ -3,12 +3,13 @@ from airflow.decorators import task
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.utils.dates import days_ago
 import requests
-import random
+from dotenv import load_dotenv
+import os
 
 load_dotenv()
 
 POSTGRES_CONN_ID = 'postgres_default'
-API_KEY = os.getenv('google_api_key')
+API_KEY = os.getenv("google_api_key")
 BASE_URL = "https://www.googleapis.com/books/v1/volumes"
 
 default_args = {
@@ -17,7 +18,7 @@ default_args = {
 }
 
 # Query parameter to search books
-QUERY = "novel"  
+QUERY = "philosophy"  
 
 with DAG(dag_id='google_books_etl',
          default_args=default_args,
@@ -40,25 +41,13 @@ with DAG(dag_id='google_books_etl',
             data = response.json()
             for item in data.get('items', []):
                 volume_info = item.get('volumeInfo', {})
-                industry_identifiers = volume_info.get('industryIdentifiers', [])
-
-                # Extract ISBN (prefer ISBN-13, fallback to ISBN-10 if available)
-                isbn = None
-                for identifier in industry_identifiers:
-                    if identifier['type'] == 'ISBN_13':
-                        isbn = identifier['identifier']
-                        break
-                    elif identifier['type'] == 'ISBN_10':
-                        isbn = identifier['identifier']
 
                 # Collect relevant fields
-                if isbn:
-                    books.append({
-                        'title': volume_info.get('title'),
-                        'rating': volume_info.get('averageRating', 0),  # Default to 0 if no rating
-                        'voters': volume_info.get('ratingsCount', 0),  # Default to 0 if no voters
-                        'isbn': isbn
-                    })
+                books.append({
+                    'title': volume_info.get('title'),
+                    'rating': volume_info.get('averageRating', 0),  # Default to 0 if no rating
+                    'voters': volume_info.get('ratingsCount', 0)  # Default to 0 if no voters
+                })
 
             return books
         else:
@@ -72,8 +61,7 @@ with DAG(dag_id='google_books_etl',
             transformed_book = {
                 'title': book['title'].strip().title(),  # Clean and standardize title
                 'rating': round(float(book['rating']), 2),  # Round rating to 2 decimal places
-                'voters': int(book['voters']),  # Ensure voters is an integer
-                'isbn': book['isbn'].strip()  # Clean ISBN
+                'voters': int(book['voters'])  # Ensure voters is an integer
             }
             transformed_data.append(transformed_book)
         
@@ -92,21 +80,19 @@ with DAG(dag_id='google_books_etl',
             title TEXT,
             rating FLOAT,
             voters INT,
-            isbn VARCHAR(20),
             timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
         """)
 
-        # Insert books data
+        # Insert books data 
         for book in transformed_data:
             cursor.execute("""
-            INSERT INTO google_books (title, rating, voters, isbn)
-            VALUES (%s, %s, %s, %s)
+            INSERT INTO google_books (title, rating, voters)
+            VALUES (%s, %s, %s)
             """, (
                 book['title'],
                 book['rating'],
-                book['voters'],
-                book['isbn']
+                book['voters']
             ))
 
         conn.commit()
